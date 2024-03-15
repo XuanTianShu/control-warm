@@ -1,22 +1,12 @@
 <template>
 	<view class="u-circle-progress">
 		<view class="u-circle-progress__left">
-			<view
-			    class="u-circle-progress__left__circle"
-			    :style="[leftSyle]"
-			    ref="left-circle"
-			>
+			<view class="u-circle-progress__left__circle" :style="[leftSyle]" ref="left-circle">
 
 			</view>
 		</view>
-		<view
-		    class="u-circle-progress__right"
-		>
-			<view
-			    class="u-circle-progress__right__circle"
-			    ref="right-circle"
-				:style="[rightSyle]"
-			>
+		<view class="u-circle-progress__right">
+			<view class="u-circle-progress__right__circle" ref="right-circle" :style="[rightSyle]">
 
 			</view>
 		</view>
@@ -40,7 +30,7 @@
 	 */
 	export default {
 		name: 'u-circle-progress',
-		mixins: [uni.$u.mpMixin, uni.$u.mixin,props],
+		mixins: [uni.$u.mpMixin, uni.$u.mixin, props],
 		data() {
 			return {
 				leftBorderColor: 'rgb(200, 200, 200)',

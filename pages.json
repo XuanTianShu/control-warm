@@ -1,70 +1,51 @@
 {
-	
+
 	"easycom": {
 		"^u-(.*)": "@/uview-ui/components/u-$1/u-$1.vue"
 	},
-	
-	"pages": [
-		{
+
+	"pages": [{
 			"path": "pages/index/index",
 			"style": {
 				"navigationBarTitleText": "%index.title%",
-				"navigationStyle": "custom",
-				"usingComponents": {
-					"topbar": "/components/topbar"  
-				}
+				"navigationStyle": "custom"
 			}
 		},
 		{
-		    "path" : "pages/device/device",
-		    "style" :                                                                                    
-		    {
-		        "navigationBarTitleText": "",
-				"navigationStyle": "custom",
-				"usingComponents": {
-					"topbar": "/components/topbar"  
-				}
-		    }
-		    
-		},
-		{
-		    "path" : "pages/explain/introduce",
-		    "style" :                                                                                    
-		    {
+			"path": "pages/device/device",
+			"style": {
 				"navigationBarTitleText": "",
-				"navigationStyle": "custom",
-				"usingComponents": {
-			   	"topbar": "/components/topbar"  
-			   }
-		    }
+				"navigationStyle": "custom"
+			}
+
 		},
-		
-		
 		{
-		    "path" : "pages/explain/explain",
-		    "style" :                                                                                    
-		    {
+			"path": "pages/explain/introduce",
+			"style": {
 				"navigationBarTitleText": "",
-				"navigationStyle": "custom",
-				"usingComponents": {
-			   	"topbar": "/components/topbar"  
-			   }
-		    }
+				"navigationStyle": "custom"
+			}
+		},
+
+
+		{
+			"path": "pages/explain/explain",
+			"style": {
+				"navigationBarTitleText": "",
+				"navigationStyle": "custom"
+			}
 		},
 		{
-            "path" : "pages/findBlue/findBlue",
-            "style": {
-            	"navigationBarTitleText": "%index.title%",
-            	"navigationStyle": "custom",
-				"usingComponents": {
-					"topbar": "/components/topbar"  
-				}
-            }
-            
-        }
-        
-        
-    ],
+			"path": "pages/findBlue/findBlue",
+			"style": {
+				"navigationBarTitleText": "%index.title%",
+				"navigationStyle": "custom"
+			}
+
+		}
+
+
+	],
 	// "tabBar": {
 	// 	"color": "#7A7E83",
 	// 	"selectedColor": "#007AFF",

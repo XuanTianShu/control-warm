@@ -1,357 +1,408 @@
 <template>
-  <view class="zui-knob-basic">
-    <view
-      ref="eleWrapper"
-      :class="{ 'zui-knob-basic-wrapper': 1, debug }"
-      :style="style"
-    >
-      <div class="background">
-        <image class="base-img" src="@/static/image/clockbg.png" mode="aspectFit"></image>
-        <!-- <image class="base-img" :src="theme.base" mode="aspectFit"></image> -->
-		<!--  -->
-      </div>
-      <div class="handle" 
-			@touchstart.prevent="dragStart"
-			@touchmove.prevent="dragMoving"
-			@touchcancel.prevent="dragCancel"
-			@touchend.prevent="dragEnd"
-	  >
-	  <view 
-			class="knob-img" :class="isipad?'knob':''">
-			<image v-show="show" style="width: 17px;"  src="@/static/icon/tod.png" mode="aspectFit"></image>
-	  </view>
-	  </div>
-    </view>
-  </view>
+	<view class="zui-knob-basic" @touchstart.prevent="dragStart" @touchmove.prevent="dragMoving"
+		@touchcancel.prevent="dragCancel" @touchend.prevent="dragEnd">
+		<view ref="eleWrapper" :class="{ 'zui-knob-basic-wrapper': 1, debug }" :style="style">
+			<div class="background">
+				<!-- <image class="base-img" src="@/static/image/clockbg.png" mode="widthFix"></image> -->
+				<canvas class="circlefCanvas" canvas-id="circlefCanvas" id="circlefCanvas"></canvas>
+			</div>
+			<div class="handle">
+				<view class="knob-img" :class="isipad?'knob':''">
+					<image v-show="show" class="_img" src="@/static/icon/tod.png" mode="aspectFit" />
+				</view>
+			</div>
+		</view>
+	</view>
 </template>
 
 <script>
-const TWO_PI = 2 * Math.PI;
+	const TWO_PI = 2 * Math.PI;
+	export default {
+		props: {
+			/**
+			 * 组件尺寸
+			 */
+			size: {
+				type: Number,
+				default: 150,
+			},
 
-export default {
-  props: {
-	
-    /**
-     * 组件尺寸
-     */
-    size: {
-      type: Number,
-      default: 150,
-    },
+			/**
+			 * 旋钮大小
+			 *
+			 * [0, 1]  以组件尺寸大小的百分比
+			 * [44, ]  像素大小
+			 */
+			knobSize: {
+				type: Number,
+				default: 0.8,
+			},
 
-    /**
-     * 旋钮大小
-     *
-     * [0, 1]  以组件尺寸大小的百分比
-     * [44, ]  像素大小
-     */
-    knobSize: {
-      type: Number,
-      default: 0.8,
-    },
+			/**
+			 * 默认位置
+			 */
+			position: {
+				type: Number,
+				default: 0,
+			},
+			/**
+			 * 开启 debug 模式
+			 */
+			debug: Boolean,
+		},
 
-    /**
-     * 默认位置
-     */
-    position: {
-      type: Number,
-      default: 0,
-    },
-    /**
-     * 开启 debug 模式
-     */
-    debug: Boolean,
-  },
+		data() {
+			return {
+				centerX: 0,
+				centerY: 0,
+				fixUniHead: 0,
+				direction: "none",
+				// 防止事件过于频繁触发
+				_eventLock: false,
+				rotateDeleta: 0,
+				schedule: this.position,
+				currentPos: this.position,
+				draging: false,
+				prevRotate: 0,
+				attachSide: "none",
+				value: this.position,
+				isipad: false,
+				show: true,
+			};
+		},
+		computed: {
+			/**
+			 * 是否有限定范围, 默认 360 度
+			 */
+			hasRange() {
+				const val = this.range;
+				if (!val) return false;
+				if (!val instanceof Array) return false;
+				if (typeof val[0] !== "number" || typeof val[1] !== "number")
+					return false;
 
-  data() {
-    return {
-      centerX: 0,
-      centerY: 0,
-      fixUniHead: 0,
-      direction: "none",
-      // 防止事件过于频繁触发
-      _eventLock: false,
-      rotateDeleta: 0,
-      currentPos: this.position,
-      draging: false,
-      prevRotate: 0,
-      attachSide: "none",
-	  value:this.position,
-	  isipad:false,
-	  show:true
-    };
-  },
+				return val[0] >= 0 && val[0] <= 360 && val[1] >= 0 && val[1] <= 360;
+			},
 
-  computed: {
-    /**
-     * 是否有限定范围, 默认 360 度
-     */
-    hasRange() {
-      const val = this.range;
-      if (!val) return false;
-      if (!val instanceof Array) return false;
-      if (typeof val[0] !== "number" || typeof val[1] !== "number")
-        return false;
+			knobSizeFixed() {
+				if (this.knobSize <= 1) return this.knobSize * this.size;
 
-      return val[0] >= 0 && val[0] <= 360 && val[1] >= 0 && val[1] <= 360;
-    },
+				return this.knobSize;
+			},
 
-    knobSizeFixed() {
-      if (this.knobSize <= 1) return this.knobSize * this.size;
+			startFixed() {
+				const range = this.range || [0, 360]
+				return range[0];
+			},
 
-      return this.knobSize;
-    },
+			endFixed() {
+				const range = this.range || [0, 360]
+				if (range[1] < range[0]) return range[1] + 360;
+				return range[1];
+			},
 
-    startFixed() {
-      const range = this.range || [0, 360]
-      return range[0];
-    },
+			positionFixed() {
+				let pos = this.currentPos + this.rotateDeleta;
+				if (this.hasRange) {
+					if (pos < this.startFixed) {
+						pos = this.startFixed;
+					} else if (pos > this.endFixed) {
+						pos = this.endFixed;
+					}
+				}
+				return pos;
+			},
 
-    endFixed() {
-      const range = this.range || [0, 360]
-      if (range[1] < range[0]) return range[1] + 360;
-      return range[1];
-    },
+			style() {
+				const style = {
+					width: `${this.size}px`,
+					height: `${this.size}px`,
+					"--zui-knob-basic-size": `${this.size}px`,
+					"--zui-knob-handle-rotate": `rotate(${this.positionFixed}deg)`,
+					"--zui-knob-handle-size": `${this.knobSizeFixed}px`,
+				};
 
-    positionFixed() {
-      let pos = this.currentPos + this.rotateDeleta;
-      if (this.hasRange) {
-        if (pos < this.startFixed) {
-          pos = this.startFixed;
-        } else if (pos > this.endFixed) {
-          pos = this.endFixed;
-        }
-      }
-      return pos;
-    },
+				return Object.keys(style)
+					.map((key) => `${key}:${style[key]}`)
+					.join(";");
+			},
+		},
 
-    style() {
-      const style = {
-        width: `${this.size}px`,
-        height: `${this.size}px`,
-        "--zui-knob-basic-size": `${this.size}px`,
-        "--zui-knob-handle-rotate": `rotate(${this.positionFixed}deg)`,
-        "--zui-knob-handle-size": `${this.knobSizeFixed}px`,
-      };
+		watch: {
+			schedule(nd) {
+				this.circleCanvas()
+			},
+			position(np) {
+				const anglePos = (this.endFixed - this.startFixed) * np + this.startFixed;
+				this.currentPos = anglePos;
+				this.$nextTick(() => {
+					this.updatePosition();
+				});
+			},
 
-      return Object.keys(style)
-        .map((key) => `${key}:${style[key]}`)
-        .join(";");
-    },
-  },
+		},
 
-  watch: {
-    position(np) {
-      const anglePos = (this.endFixed - this.startFixed) * np + this.startFixed;
-      this.currentPos = anglePos;
-      this.$nextTick(() => {
-        this.updatePosition();
-      });
-    },
-  },
+		mounted() {
+			// 环形进度
+			this.circleCanvas()
 
-  mounted() {
-	const systemInfo = uni.getSystemInfoSync();  
-	const model = systemInfo.model;  
-	if (model.includes('iPad')) {  
-		this.isipad=true
-	}
-    this.updateCenter();
-    this.updatePosition();
-  },
+			const systemInfo = uni.getSystemInfoSync();
+			const model = systemInfo.model;
+			if (model.includes('iPad')) {
+				this.isipad = true
+			}
+			this.updateCenter();
+			this.updatePosition();
+		},
 
-  methods: {
-    updateCenter() {
-      // #ifdef H5
-      const rect = this.$refs.eleWrapper.$el.getBoundingClientRect();
-      this.centerX = rect.left + rect.width / 2;
-      this.centerY = rect.top + rect.height / 2;
+		methods: {
 
-      if (typeof document !== "undefined") {
-        const head = document.querySelector(".uni-page-head");
-        this.fixUniHead = !!head ? 44 : 0;
-      }
-      // #endif
+			circleCanvas() {
+				const ctx = uni.createCanvasContext('circlefCanvas')
+				let end = (this.schedule / 360) * 2 * Math.PI; //设置弧度
+				ctx.setLineWidth(20); // 设置圆环的宽度
+				ctx.arc(this.size / 2, this.size / 2, 110, 0, 2 * Math.PI)
+				ctx.setStrokeStyle('#090909');
+				ctx.setLineCap('round'); // 设置圆环端点的形状  圆角
+				ctx.stroke(); //对当前路径进行描边
+				// ctx.setLineCap('square'); // 设置圆环端点的形状  无圆角
+				ctx.beginPath(); //开始一个新的路径
+				ctx.setStrokeStyle('#F46E10'); // 设置圆环的颜色
+				ctx.setLineCap('round'); // 设置圆环端点的形状  圆角
+				ctx.arc(this.size / 2, this.size / 2, 110, 0, end, false);
+				ctx.stroke(); //对当前路径进行描边
+				//设置一个原点(110,110)，半径为100的圆的路径到当前路径
+				ctx.stroke(); //对当前路径进行描边
+				ctx.draw();
 
-      // #ifndef H5
-      const query = uni.createSelectorQuery().in(this);
-      query
-        .select(".zui-knob-basic-wrapper")
-        .fields({ size: true, rect: true })
-        .exec((rst) => {
-          if (!rst) return;
-          if (!rst[0]) return;
-          this.centerX = rst[0].left + rst[0].width / 2;
-          this.centerY = rst[0].top + rst[0].height / 2;
-        });
-      // #endif
-    },
+			},
 
-    updatePosition() {
-      if (this.hasRange) {
-        this.currentPos = this.positionFixed;
-      }
-    },
+			updateCenter() {
+				// #ifdef H5
+				const rect = this.$refs.eleWrapper.$el.getBoundingClientRect();
+				this.centerX = rect.left + rect.width / 2;
+				this.centerY = rect.top + rect.height / 2;
 
-    tickCount(count) {
-      if (count === 0) {
-        this.skipCalc = false;
-        return;
-      }
+				if (typeof document !== "undefined") {
+					const head = document.querySelector(".uni-page-head");
+					this.fixUniHead = !!head ? 44 : 0;
+				}
+				// #endif
 
-      this.$nextTick(() => {
-        this.tickCount(count--);
-      });
-    },
+				// #ifndef H5
+				const query = uni.createSelectorQuery().in(this);
+				query
+					.select(".zui-knob-basic-wrapper")
+					.fields({
+						size: true,
+						rect: true
+					})
+					.exec((rst) => {
+						if (!rst) return;
+						if (!rst[0]) return;
+						this.centerX = rst[0].left + rst[0].width / 2;
+						this.centerY = rst[0].top + rst[0].height / 2;
+					});
+				// #endif
+			},
 
-    calucateAngle(nx, ny) {
-      const dx = nx - this.centerX;
-      const dy = ny - this.centerY;
-      const radius = Math.sqrt(dx * dx + dy * dy);
-      const radian = (Math.atan2(dy, dx) + TWO_PI) % TWO_PI;
-      let degree = ((radian * 180) / Math.PI + 360) % 360;
-	  
-      const state = {
-        radius,
-        radian,
-        degree,
-      };
-	  
-	  let direction= uni.getStorageSync('direction')
-	  //翻转
-	  if(!direction){
-		  degree=180-degree
-	  }
-	  
-      this.rotate = degree;
-      this.radius = radius;
+			updatePosition() {
+				if (this.hasRange) {
+					this.currentPos = this.positionFixed;
+				}
+			},
 
-      if (this.rotateDeleta === 0) {
-        this.prevRotate = degree;
-        this.rotateDeleta = 0.00000001;
-      }
-      let diff = degree - this.prevRotate;
-      // 跨 0 度轴处理
-      if (diff < -90) {
-        diff += 360;
-      } else if (diff > 90 ) {
-        diff -= 360;
-      }
-	  this.prevRotate = degree;
-	  
-	  // 旋转角度
-	  let rotate=this.rotateDeleta + diff+this.value
-	  if(rotate>=0 && rotate<360){
-		  if(rotate>270){
-		  	  this.show=false
-		  }else{
-			  this.show=true
-		  }
-		  this.rotateDeleta =this.rotateDeleta + diff;
-		  // 大齿轮转动
-		  this.$emit("run",Math.round(rotate));
-		  // console.error(this.rotateDeleta);
-	  }
+			tickCount(count) {
+				if (count === 0) {
+					this.skipCalc = false;
+					return;
+				}
 
-	  state.deleta = this.rotateDeleta;
-	  state.diff = diff;
-	  state.direction = diff >= 0 ? "clockwise" : "counterclockwise";
-      return state;
-    },
+				this.$nextTick(() => {
+					this.tickCount(count--);
+				});
+			},
 
-    dragStart(evt) {
-      this.draging = true;
-      this.prevRotate = this.rotate;
-      this.rotateDeleta = 0;
-    },
+			calucateAngle(nx, ny) {
+				const dx = nx - this.centerX;
+				const dy = ny - this.centerY;
+				const radius = Math.sqrt(dx * dx + dy * dy);
+				const radian = (Math.atan2(dy, dx) + TWO_PI) % TWO_PI;
+				let degree = ((radian * 180) / Math.PI + 360) % 360;
 
-    dragMoving(evt) {
-      const change = this.calucateAngle(
-        evt.touches[0].clientX,
-        evt.touches[0].clientY + this.fixUniHead
-      );
-      
-      if (this.direction !== change.direction) {
-        this.direction = change.direction;
-      }
-    },
+				const state = {
+					radius,
+					radian,
+					degree,
+				};
 
-    dragCancel() {
-      this.reset();
-    },
+				let direction = uni.getStorageSync('direction')
+				//翻转
+				if (!direction) {
+					degree = 180 - degree
+				}
 
-    dragEnd() {
-	  this.value=this.rotateDeleta+this.value
-	  this.$emit("change", this.value.toFixed(0));
-      this.reset();
-    },
+				this.rotate = degree;
+				this.radius = radius;
 
-    reset() {
-      this.currentPos = this.currentPos + this.rotateDeleta;
-      this.rotateDeleta = 0;
-      this.draging = false;
-    },
+				if (this.rotateDeleta === 0) {
+					this.prevRotate = degree;
+					this.rotateDeleta = 0.00000001;
+				}
+				let diff = degree - this.prevRotate;
+				// 跨 0 度轴处理
+				if (diff < -90) {
+					diff += 360;
+				} else if (diff > 90) {
+					diff -= 360;
+				}
+				this.prevRotate = degree;
+
+				// 旋转角度
+				let rotate = this.rotateDeleta + diff + this.value
+				// 限制进度
+				if (rotate >= 0 && rotate < 200) {
+					if (rotate > 270) {
+						this.show = false
+						rotate = 270
+					} else {
+						this.show = true
+
+					}
+					this.schedule = rotate
+					this.rotateDeleta = this.rotateDeleta + diff;
+					// 大齿轮转动
+					this.$emit("run", Math.round(rotate));
+					// console.error(this.rotateDeleta);
+				}
+
+				state.deleta = this.rotateDeleta;
+				state.diff = diff;
+				state.direction = diff >= 0 ? "clockwise" : "counterclockwise";
+				return state;
+			},
+
+			dragStart(evt) {
+				this.draging = true;
+				this.prevRotate = this.rotate;
+				this.rotateDeleta = 0;
+			},
+
+			dragMoving(evt) {
+				const change = this.calucateAngle(
+					evt.touches[0].clientX,
+					evt.touches[0].clientY + this.fixUniHead
+				);
+
+				if (this.direction !== change.direction) {
+					this.direction = change.direction;
+				}
+			},
+
+			dragCancel() {
+				this.reset();
+			},
+
+			dragEnd() {
+				this.value = this.rotateDeleta + this.value
+				this.$emit("change", this.value.toFixed(0));
+				this.reset();
+			},
+
+			reset() {
+				this.currentPos = this.currentPos + this.rotateDeleta;
+				this.rotateDeleta = 0;
+				this.draging = false;
+			},
 
 
-  },
-};
+		},
+	};
 </script>
 
 <style scoped>
-.zui-knob-basic {
-  position: relative;
-  border-radius: 50%;
-  display: flex;
-}
+	.zui-knob-basic {
+		position: relative;
+		border-radius: 50%;
+		display: flex;
+	}
 
-.zui-knob-basic-wrapper {
-  position: relative;
-}
+	.zui-knob-basic-wrapper {
+		position: relative;
+	}
 
-.zui-knob-basic-wrapper .background {
- position: relative;
-  top: var(--zui-knob-basic-arrow-size);
-  left: var(--zui-knob-basic-arrow-size);
-  width: var(--zui-knob-basic-size);
-  height: var(--zui-knob-basic-size);
-  border-radius: 50%;
-  /* border: 1px solid #ffffff; */
-  box-sizing: border-box;
-}
+	.zui-knob-basic-wrapper .background {
+		position: absolute;
+		top: var(--zui-knob-basic-arrow-size);
+		left: var(--zui-knob-basic-arrow-size);
+		width: var(--zui-knob-basic-size);
+		height: var(--zui-knob-basic-size);
+		border-radius: 50%;
+		box-sizing: border-box;
+		/* border: 1px solid #FFF; */
+		display: flex;
+		justify-content: center;
+		align-items: center;
+	}
 
-.base-img {
- width: var(--zui-knob-basic-size);
-  height: var(--zui-knob-basic-size);
-}
 
-.handle {
-  border-radius: 50%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 100%;
-  height: 100%;
-  transform-origin: center;
-  transform: var(--zui-knob-handle-rotate, rotate(0));
-  /* border: 1px solid crimson; */
-}
 
-.knob{
-	padding: 6rpx !important;
-}
-.knob-img {
-	padding: 12rpx;
-	width: var(--zui-knob-handle-size);
-	height: var(--zui-knob-handle-size);
-	transform: rotate(-67deg);
-	border-radius: 50%;
-}
+	.base-img {
+		width: var(--zui-knob-basic-size);
+		height: var(--zui-knob-basic-size);
+		position: relative;
+	}
 
-.hint-img {
-  width: var(--zui-knob-basic-hint-size);
-  height: var(--zui-knob-basic-hint-size);
-}
+
+	.handle {
+		border-radius: 50%;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		position: absolute;
+		left: 0;
+		top: 0;
+		width: 100%;
+		height: 100%;
+		transform-origin: center;
+		transform: var(--zui-knob-handle-rotate, rotate(0));
+		/* background-color: #fff; */
+	}
+
+	.knob {
+		padding: 6rpx !important;
+	}
+
+	.knob-img {
+		width: var(--zui-knob-handle-size);
+		height: var(--zui-knob-handle-size);
+		/* transform: rotate(-67deg); */
+		border-radius: 50%;
+		position: relative;
+		border: 1px solid #fff;
+		box-sizing: border-box;
+		/* padding: 20px; */
+	}
+
+	.circlefCanvas {
+		width: var(--zui-knob-basic-size);
+		height: var(--zui-knob-basic-size);
+		transform: rotate(110deg);
+		transform: rotate(180deg);
+		border: 1px solid crimson;
+		box-sizing: border-box;
+		border-radius: 50%;
+	}
+
+	._img {
+		/* position: absolute; */
+		width: 32rpx;
+		height: 32rpx;
+		/* bottom: 50%; */
+	}
+
+	.hint-img {
+		width: var(--zui-knob-basic-hint-size);
+		height: var(--zui-knob-basic-hint-size);
+	}
 </style>
