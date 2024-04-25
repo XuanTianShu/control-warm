@@ -1,12 +1,12 @@
 <template>
-	<view class="zui-knob-basic" @touchstart.prevent="dragStart" @touchmove.prevent="dragMoving"
-		@touchcancel.prevent="dragCancel" @touchend.prevent="dragEnd">
+	<view class="zui-knob-basic">
 		<view ref="eleWrapper" :class="{ 'zui-knob-basic-wrapper': 1, debug }" :style="style">
 			<div class="background">
-				<!-- <image class="base-img" src="@/static/image/clockbg.png" mode="widthFix"></image> -->
 				<canvas class="circlefCanvas" canvas-id="circlefCanvas" id="circlefCanvas"></canvas>
+
 			</div>
-			<div class="handle">
+			<div class="handle" @touchstart.prevent="dragStart" @touchmove.prevent="dragMoving"
+				@touchcancel.prevent="dragCancel" @touchend.prevent="dragEnd">
 				<view class="knob-img" :class="isipad?'knob':''">
 					<image v-show="show" class="_img" src="@/static/icon/tod.png" mode="aspectFit" />
 				</view>
@@ -160,19 +160,21 @@
 			circleCanvas() {
 				const ctx = uni.createCanvasContext('circlefCanvas')
 				let end = (this.schedule / 360) * 2 * Math.PI; //设置弧度
+				let x = this.size / 2,
+					y = x;
+
+				ctx.setLineCap('round'); // 设置圆环端点的形状  圆角
+				ctx.beginPath(); // 开始一个新的路径
 				ctx.setLineWidth(20); // 设置圆环的宽度
-				ctx.arc(this.size / 2, this.size / 2, 110, 0, 2 * Math.PI)
-				ctx.setStrokeStyle('#090909');
-				ctx.setLineCap('round'); // 设置圆环端点的形状  圆角
-				ctx.stroke(); //对当前路径进行描边
-				// ctx.setLineCap('square'); // 设置圆环端点的形状  无圆角
-				ctx.beginPath(); //开始一个新的路径
+				ctx.setStrokeStyle('#090909'); // 设置圆环的颜色
+				ctx.arc(x, y, 110, 0, 2 * Math.PI); // 绘制完整的圆环
+				ctx.stroke(); // 对当前路径进行描边
+
+				ctx.beginPath(); // 开始另一个新的路径
 				ctx.setStrokeStyle('#F46E10'); // 设置圆环的颜色
-				ctx.setLineCap('round'); // 设置圆环端点的形状  圆角
-				ctx.arc(this.size / 2, this.size / 2, 110, 0, end, false);
-				ctx.stroke(); //对当前路径进行描边
-				//设置一个原点(110,110)，半径为100的圆的路径到当前路径
-				ctx.stroke(); //对当前路径进行描边
+				ctx.arc(x, y, 110, 0, end, false); // 绘制圆环的一部分
+				ctx.stroke();
+
 				ctx.draw();
 
 			},
@@ -345,7 +347,12 @@
 		align-items: center;
 	}
 
-
+	.circlefCanvas {
+		width: var(--zui-knob-basic-size);
+		height: var(--zui-knob-basic-size);
+		/* transform: rotate(180deg); */
+		transform: rotate(110deg);
+	}
 
 	.base-img {
 		width: var(--zui-knob-basic-size);
@@ -366,39 +373,22 @@
 		height: 100%;
 		transform-origin: center;
 		transform: var(--zui-knob-handle-rotate, rotate(0));
-		/* background-color: #fff; */
 	}
 
-	.knob {
-		padding: 6rpx !important;
-	}
+
 
 	.knob-img {
 		width: var(--zui-knob-handle-size);
 		height: var(--zui-knob-handle-size);
-		/* transform: rotate(-67deg); */
-		border-radius: 50%;
-		position: relative;
-		border: 1px solid #fff;
-		box-sizing: border-box;
-		/* padding: 20px; */
-	}
-
-	.circlefCanvas {
-		width: var(--zui-knob-basic-size);
-		height: var(--zui-knob-basic-size);
-		transform: rotate(110deg);
-		transform: rotate(180deg);
-		border: 1px solid crimson;
-		box-sizing: border-box;
-		border-radius: 50%;
+		transform: rotate(-70deg);
 	}
 
 	._img {
-		/* position: absolute; */
-		width: 32rpx;
-		height: 32rpx;
-		/* bottom: 50%; */
+		width: 16px;
+		height: 16px;
+		border-radius: 50%;
+		top: 50%;
+		transform: translate(30%, -55%);
 	}
 
 	.hint-img {
